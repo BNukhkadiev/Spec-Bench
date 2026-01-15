@@ -1,0 +1,50 @@
+{"question_id": 1, "task": "Multiclass_Product_Classification", "reference_output": "B: The product is somewhat relevant. It fails to fulfill some aspects of the query but the product can be used as a functional substitute."}
+{"question_id": 2, "task": "Multiclass_Product_Classification", "reference_output": "B: The product is somewhat relevant. It fails to fulfill some aspects of the query but the product can be used as a functional substitute."}
+{"question_id": 3, "task": "Multiclass_Product_Classification", "reference_output": "D: The product is irrelevant to the query."}
+{"question_id": 4, "task": "Multiclass_Product_Classification", "reference_output": "A: The product is relevant to the query, and satisfies all the query specifications."}
+{"question_id": 5, "task": "Multiclass_Product_Classification", "reference_output": "A: The product is relevant to the query, and satisfies all the query specifications."}
+{"question_id": 6, "task": "Multiclass_Product_Classification", "reference_output": "A: The product is relevant to the query, and satisfies all the query specifications."}
+{"question_id": 7, "task": "Multiclass_Product_Classification", "reference_output": "A: The product is relevant to the query, and satisfies all the query specifications."}
+{"question_id": 8, "task": "Multiclass_Product_Classification", "reference_output": "C: The product does not fulfill the query, but could be used in combination with a product exactly matching the query."}
+{"question_id": 9, "task": "Multiclass_Product_Classification", "reference_output": "A: The product is relevant to the query, and satisfies all the query specifications."}
+{"question_id": 10, "task": "Multiclass_Product_Classification", "reference_output": "D: The product is irrelevant to the query."}
+{"question_id": 11, "task": "Multiclass_Product_Classification", "reference_output": "A: The product is relevant to the query, and satisfies all the query specifications."}
+{"question_id": 12, "task": "Multiclass_Product_Classification", "reference_output": "B: The product is somewhat relevant. It fails to fulfill some aspects of the query but the product can be used as a functional substitute."}
+{"question_id": 13, "task": "Multiclass_Product_Classification", "reference_output": "A: The product is relevant to the query, and satisfies all the query specifications."}
+{"question_id": 14, "task": "Multiclass_Product_Classification", "reference_output": "A: The product is relevant to the query, and satisfies all the query specifications."}
+{"question_id": 15, "task": "Multiclass_Product_Classification", "reference_output": "B: The product is somewhat relevant. It fails to fulfill some aspects of the query but the product can be used as a functional substitute."}
+{"question_id": 16, "task": "Multiclass_Product_Classification", "reference_output": "B: The product is somewhat relevant. It fails to fulfill some aspects of the query but the product can be used as a functional substitute."}
+{"question_id": 17, "task": "Multiclass_Product_Classification", "reference_output": "A: The product is relevant to the query, and satisfies all the query specifications."}
+{"question_id": 18, "task": "Multiclass_Product_Classification", "reference_output": "A: The product is relevant to the query, and satisfies all the query specifications."}
+{"question_id": 19, "task": "Multiclass_Product_Classification", "reference_output": "B: The product is somewhat relevant. It fails to fulfill some aspects of the query but the product can be used as a functional substitute."}
+{"question_id": 20, "task": "Multiclass_Product_Classification", "reference_output": "A: The product is relevant to the query, and satisfies all the query specifications."}
+{"question_id": 21, "task": "Multiclass_Product_Classification", "reference_output": "A: The product is relevant to the query, and satisfies all the query specifications."}
+{"question_id": 22, "task": "Multiclass_Product_Classification", "reference_output": "A: The product is relevant to the query, and satisfies all the query specifications."}
+{"question_id": 23, "task": "Multiclass_Product_Classification", "reference_output": "A: The product is relevant to the query, and satisfies all the query specifications."}
+{"question_id": 24, "task": "Multiclass_Product_Classification", "reference_output": "A: The product is relevant to the query, and satisfies all the query specifications."}
+{"question_id": 25, "task": "Multiclass_Product_Classification", "reference_output": "A: The product is relevant to the query, and satisfies all the query specifications."}
+{"question_id": 26, "task": "Multiclass_Product_Classification", "reference_output": "A: The product is relevant to the query, and satisfies all the query specifications."}
+{"question_id": 27, "task": "Multiclass_Product_Classification", "reference_output": "A: The product is relevant to the query, and satisfies all the query specifications."}
+{"question_id": 28, "task": "Multiclass_Product_Classification", "reference_output": "A: The product is relevant to the query, and satisfies all the query specifications."}
+{"question_id": 29, "task": "Multiclass_Product_Classification", "reference_output": "A: The product is relevant to the query, and satisfies all the query specifications."}
+{"question_id": 30, "task": "Multiclass_Product_Classification", "reference_output": "B: The product is somewhat relevant. It fails to fulfill some aspects of the query but the product can be used as a functional substitute."}
+{"question_id": 31, "task": "Multiclass_Product_Classification", "reference_output": "A: The product is relevant to the query, and satisfies all the query specifications."}
+{"question_id": 32, "task": "Multiclass_Product_Classification", "reference_output": "A: The product is relevant to the query, and satisfies all the query specifications."}
+{"question_id": 33, "task": "Multiclass_Product_Classification", "reference_output": "A: The product is relevant to the query, and satisfies all the query specifications."}
+{"question_id": 34, "task": "Multiclass_Product_Classification", "reference_output": "D: The product is irrelevant to the query."}
+{"question_id": 35, "task": "Multiclass_Product_Classification", "reference_output": "A: The product is relevant to the query, and satisfies all the query specifications."}
+{"question_id": 36, "task": "Multiclass_Product_Classification", "reference_output": "A: The product is relevant to the query, and satisfies all the query specifications."}
+{"question_id": 37, "task": "Multiclass_Product_Classification", "reference_output": "A: The product is relevant to the query, and satisfies all the query specifications."}
+{"question_id": 38, "task": "Multiclass_Product_Classification", "reference_output": "B: The product is somewhat relevant. It fails to fulfill some aspects of the query but the product can be used as a functional substitute."}
+{"question_id": 39, "task": "Multiclass_Product_Classification", "reference_output": "A: The product is relevant to the query, and satisfies all the query specifications."}
+{"question_id": 40, "task": "Multiclass_Product_Classification", "reference_output": "A: The product is relevant to the query, and satisfies all the query specifications."}
+{"question_id": 41, "task": "Multiclass_Product_Classification", "reference_output": "B: The product is somewhat relevant. It fails to fulfill some aspects of the query but the product can be used as a functional substitute."}
+{"question_id": 42, "task": "Multiclass_Product_Classification", "reference_output": "B: The product is somewhat relevant. It fails to fulfill some aspects of the query but the product can be used as a functional substitute."}
+{"question_id": 43, "task": "Multiclass_Product_Classification", "reference_output": "A: The product is relevant to the query, and satisfies all the query specifications."}
+{"question_id": 44, "task": "Multiclass_Product_Classification", "reference_output": "A: The product is relevant to the query, and satisfies all the query specifications."}
+{"question_id": 45, "task": "Multiclass_Product_Classification", "reference_output": "A: The product is relevant to the query, and satisfies all the query specifications."}
+{"question_id": 46, "task": "Multiclass_Product_Classification", "reference_output": "A: The product is relevant to the query, and satisfies all the query specifications."}
+{"question_id": 47, "task": "Multiclass_Product_Classification", "reference_output": "B: The product is somewhat relevant. It fails to fulfill some aspects of the query but the product can be used as a functional substitute."}
+{"question_id": 48, "task": "Multiclass_Product_Classification", "reference_output": "A: The product is relevant to the query, and satisfies all the query specifications."}
+{"question_id": 49, "task": "Multiclass_Product_Classification", "reference_output": "D: The product is irrelevant to the query."}
+{"question_id": 50, "task": "Multiclass_Product_Classification", "reference_output": "A: The product is relevant to the query, and satisfies all the query specifications."}

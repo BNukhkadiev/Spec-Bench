@@ -145,7 +145,7 @@ def get_model_answers(
                 if conv.name == "xgen" and output.startswith("Assistant:"):
                     output = output.replace("Assistant:", "", 1).strip()
             except RuntimeError as e:
-                print("ERROR question ID: ", question["question_id"])
+                print("ERROR question ID: ", question["question_id"], "|", repr(e))
                 output = "ERROR"
 
             turns.append(output)
@@ -175,6 +175,10 @@ def get_model_answers(
                 prompt = conv.get_prompt()
                 inputs = tokenizer([prompt], return_tensors="pt").to("cuda")
                 input_ids = inputs.input_ids
+                step = 0
+                new_token = 0
+                total_time = float("nan")
+                accept_length_tree = []
                 try:
                     torch.cuda.synchronize()
                     start_time = time.time()
@@ -216,8 +220,13 @@ def get_model_answers(
                     if conv.name == "xgen" and output.startswith("Assistant:"):
                         output = output.replace("Assistant:", "", 1).strip()
                 except RuntimeError as e:
-                    print("ERROR question ID: ", question["question_id"])
+                    print("ERROR question ID: ", question["question_id"], "|", repr(e))
                     output = "ERROR"
+                    # defaults so the logging code below doesn't crash
+                    step = 0
+                    new_token = 0
+                    total_time = float("nan")
+                    accept_length_tree = []
 
                 turns.append(output)
                 steps.append(int(step))
