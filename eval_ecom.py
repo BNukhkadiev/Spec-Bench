@@ -2,39 +2,50 @@ import argparse
 import json
 import re
 from collections import defaultdict
+from pathlib import Path
 
 import numpy as np
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 
 # ---------------- IO ----------------
-def read_jsonl(path):
-    rows = []
-    with open(path, "r", encoding="utf-8") as f:
-        for line in f:
+def read_jsonl_iter(path: Path, *, skip_bad=True, verbose=True):
+    with path.open("r", encoding="utf-8") as f:
+        for lineno, line in enumerate(f, start=1):
             line = line.strip()
             if not line:
                 continue
-            rows.append(json.loads(line))
-    return rows
+            try:
+                yield json.loads(line)
+            except json.JSONDecodeError as e:
+                if verbose:
+                    preview = line[:200].replace("\n", "\\n")
+                    print(f"[WARN] {path} line {lineno}: JSONDecodeError: {e}. Line starts: {preview!r}")
+                if not skip_bad:
+                    raise
+                continue
 
 
-def load_refs(refs_path):
-    # refs: {"question_id": ..., "task": ..., "reference_output": ...}
+def read_jsonl(path: Path, *, skip_bad=True, verbose=True):
+    return list(read_jsonl_iter(path, skip_bad=skip_bad, verbose=verbose))
+
+
+def load_refs(refs_path: Path):
+    # refs rows: {"question_id": ..., "task": ..., "reference_output": ...}
     refs = {}
     task_by_qid = {}
-    for r in read_jsonl(refs_path):
+    for r in read_jsonl_iter(refs_path):
         qid = int(r["question_id"])
         refs[qid] = r.get("reference_output")
         task_by_qid[qid] = r.get("task") or r.get("category") or ""
     return refs, task_by_qid
 
 
-def load_answers(answers_path):
-    # FastChat answers: {"question_id":..., "choices":[{"turns":[...]}], "model_id":...}
+def load_answers(answers_path: Path):
+    # FastChat answers rows: {"question_id":..., "choices":[{"turns":[...]}], "model_id":...}
     answers = {}
     model_id = None
-    for a in read_jsonl(answers_path):
+    for a in read_jsonl_iter(answers_path):
         qid = int(a["question_id"])
         choices = a.get("choices") or []
         if not choices:
@@ -58,6 +69,7 @@ def normalize_task_name(task: str) -> str:
 # ---------------- Parsing ----------------
 LABEL_LETTERS = set("ABCDE")
 
+
 def extract_first_option_letter(text):
     """
     Extract A-E from model answer. Accepts:
@@ -66,6 +78,8 @@ def extract_first_option_letter(text):
     if text is None:
         return None
     t = str(text).strip()
+    if not t:
+        return None
 
     # Find standalone A-E anywhere
     m = re.search(r"\b([A-E])\b", t)
@@ -87,7 +101,10 @@ def parse_ref_label_letter(ref_output):
     """
     if ref_output is None:
         return None
-    return extract_first_option_letter(str(ref_output)) or (str(ref_output).strip()[:1] if str(ref_output).strip() else None)
+    s = str(ref_output).strip()
+    if not s:
+        return None
+    return extract_first_option_letter(s) or s[:1].upper()
 
 
 # ---------------- Metrics ----------------
@@ -103,7 +120,7 @@ def eval_multiclass(y_true, y_pred):
 def DCG(score_list):
     dcg = 0.0
     for i, s in enumerate(score_list):
-        dcg += (2 ** s - 1) / (np.log2(i + 2))
+        dcg += (2**s - 1) / (np.log2(i + 2))
     return dcg
 
 
@@ -111,7 +128,7 @@ def eval_ndcg(pred_text, ref_output):
     """
     Ranking evaluation:
     - Prediction: "A,B,C,D" (ranking letters)
-    - Reference output: must allow mapping option->label among {E,S,C,I}
+    - Reference output defines per-option relevance among {E,S,C,I}
       Common forms:
         * JSON list e.g. ["E","S","C","I"] aligns to A,B,C,D
         * JSON dict e.g. {"A":"E","B":"S","C":"C","D":"I"}
@@ -126,7 +143,6 @@ def eval_ndcg(pred_text, ref_output):
     label2score = {}
     parsed = None
 
-    # ref_output may be a JSON string
     if isinstance(ref_output, str):
         s = ref_output.strip()
         try:
@@ -151,10 +167,8 @@ def eval_ndcg(pred_text, ref_output):
                 letter = kk[0].upper()
                 label2score[letter] = score_mapping.get(vv, None)
     else:
-        # Can't evaluate if reference doesn't define per-option relevance labels
         return None, 1
 
-    # Parse prediction ranking
     ranks = [x.strip() for x in str(pred_text).strip().split(",") if x.strip()]
     if not ranks:
         return None, 1
@@ -177,34 +191,16 @@ def eval_ndcg(pred_text, ref_output):
     return float(dcg / (idcg + 1e-9)), invalid
 
 
-# ---------------- Main ----------------
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--answers", required=True, help="FastChat answers JSONL")
-    ap.add_argument("--refs", required=True, help="Refs JSONL (e.g., Sentiment_Analysis_refs.jsonl or merged)")
-    ap.add_argument("--task", default="", help="Optional: restrict to one of: Sentiment_Analysis, Multiclass_Product_Classification, Query_Product_Rank")
-    args = ap.parse_args()
-
-    refs, task_by_qid = load_refs(args.refs)
-    answers, model_id = load_answers(args.answers)
-
+def compute_metrics_for_one_experiment(refs, task_by_qid, answers):
     qids = sorted(set(refs.keys()) & set(answers.keys()))
     if not qids:
-        raise SystemExit("No overlapping question_ids between answers and refs.")
+        return {}
 
-    # Group by task
     groups = defaultdict(list)
     for qid in qids:
         groups[normalize_task_name(task_by_qid.get(qid, ""))].append(qid)
 
-    # Optional filter
-    if args.task:
-        wanted = normalize_task_name(args.task)
-        groups = {k: v for k, v in groups.items() if normalize_task_name(k) == wanted}
-        if not groups:
-            raise SystemExit(f"No questions found for task={args.task} after filtering.")
-
-    results = {"model_id": model_id, "by_task": {}}
+    out = {"by_task": {}}
 
     for task, tqids in groups.items():
         task = normalize_task_name(task)
@@ -223,7 +219,7 @@ def main():
                 y_pred.append(pred_letter)
 
             metrics = eval_multiclass(y_true, y_pred) if y_true else {}
-            results["by_task"][task] = {
+            out["by_task"][task] = {
                 **metrics,
                 "n_total": len(tqids),
                 "n_used": len(y_true),
@@ -243,7 +239,7 @@ def main():
                 ndcgs.append(ndcg_val)
                 invalid_ranks += inv_i
 
-            results["by_task"][task] = {
+            out["by_task"][task] = {
                 "ndcg": float(np.mean(ndcgs)) if ndcgs else 0.0,
                 "n_total": len(tqids),
                 "n_used": len(ndcgs),
@@ -252,11 +248,65 @@ def main():
             }
 
         else:
-            # Ignore any other tasks
+            # ignore unknown tasks
             continue
 
-    print(json.dumps(results, indent=2, ensure_ascii=False))
+    return out
 
+
+# ---------------- Main ----------------
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--data_dir", default="data", help="Root data dir (default: data)")
+    ap.add_argument("--task", default="", help="Optional: only evaluate this task folder (lowercase)")
+    args = ap.parse_args()
+
+    data_dir = Path(args.data_dir)
+
+    task_dirs = (
+        [data_dir / args.task]
+        if args.task
+        else [p for p in data_dir.iterdir() if p.is_dir()]
+    )
+
+    for task_dir in sorted(task_dirs, key=lambda p: p.name):
+        model_answer_dir = task_dir / "model_answer"
+        refs_path = task_dir / "reference_answer" / "refs.jsonl"
+
+        if not model_answer_dir.exists() or not refs_path.exists():
+            continue
+
+        print(f"\n=== Task: {task_dir.name} ===")
+
+        refs, task_by_qid = load_refs(refs_path)
+
+        for answers_path in sorted(model_answer_dir.glob("*.jsonl")):
+            answers, model_id = load_answers(answers_path)
+            metrics = compute_metrics_for_one_experiment(refs, task_by_qid, answers)
+            by_task = metrics.get("by_task", {})
+
+            for task_name, m in by_task.items():
+                name = answers_path.stem
+
+                # -------- Classification --------
+                if "acc" in m:
+                    print(
+                        f"{name:55s} | "
+                        f"acc: {m['acc']:.3f} | "
+                        f"f1: {m['f1_macro']:.3f} | "
+                        f"used: {m['n_used']}/{m['n_total']} | "
+                        f"invalid: {m['n_invalid']}"
+                    )
+
+                # -------- Ranking --------
+                elif "ndcg" in m:
+                    print(
+                        f"{name:55s} | "
+                        f"NDCG: {m['ndcg']:.4f} | "
+                        f"used: {m['n_used']}/{m['n_total']} | "
+                        f"invalid: {m['n_invalid']} | "
+                        f"invalid_ranks: {m['invalid_ranks']}"
+                    )
 
 if __name__ == "__main__":
     main()
