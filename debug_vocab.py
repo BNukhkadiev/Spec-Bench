@@ -1,85 +1,127 @@
-import time
-import torch
+# ======= ONE-CELL SPECULATIVE DECODING DEBUG =======
+
+import time, json, hashlib
+import torch, transformers
 from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig
 
 print("torch:", torch.__version__)
-import transformers
 print("transformers:", transformers.__version__)
-
+print("cuda available:", torch.cuda.is_available())
 device = "cuda" if torch.cuda.is_available() else "cpu"
-print("device:", device)
 
-BASE_MODEL  = "Qwen/Qwen-7B"
-DRAFT_MODEL = "Qwen/Qwen1.5-1.8B"  # change to the exact 1.5B-ish model you use
+MAIN_ID  = "Qwen/Qwen2.5-7B-Instruct"
+DRAFT_ID = "Qwen/Qwen2.5-1.5B-Instruct"
 
-# 1) Load tokenizers
-base_tok = AutoTokenizer.from_pretrained(BASE_MODEL, trust_remote_code=True)
-draft_tok = AutoTokenizer.from_pretrained(DRAFT_MODEL, trust_remote_code=True)
+print("\nLoading tokenizers...")
+main_tok  = AutoTokenizer.from_pretrained(MAIN_ID, use_fast=True)
+draft_tok = AutoTokenizer.from_pretrained(DRAFT_ID, use_fast=True)
 
-# 2) Hard checks (most speculative exceptions come from these)
-print("base vocab:", base_tok.vocab_size, "draft vocab:", draft_tok.vocab_size)
-if base_tok.vocab_size != draft_tok.vocab_size:
-    raise RuntimeError("Vocab size mismatch -> speculative decoding will likely fail unless using UAD.")
+def tok_fingerprint(tok):
+    vocab = tok.get_vocab()
+    h = hashlib.sha256(
+        json.dumps(sorted(vocab.items()), ensure_ascii=False).encode("utf-8")
+    ).hexdigest()[:12]
+    return {
+        "vocab_size": tok.vocab_size,
+        "hash": h,
+        "bos": (tok.bos_token, tok.bos_token_id),
+        "eos": (tok.eos_token, tok.eos_token_id),
+        "pad": (tok.pad_token, tok.pad_token_id),
+        "unk": (tok.unk_token, tok.unk_token_id),
+    }
 
-prompt = "Write one sentence explaining speculative decoding."
-base_inputs  = base_tok(prompt, return_tensors="pt")
-draft_inputs = draft_tok(prompt, return_tensors="pt")
+print("\nMAIN tokenizer:", tok_fingerprint(main_tok))
+print("DRAFT tokenizer:", tok_fingerprint(draft_tok))
 
-# If these differ, the assistant is proposing tokens in a different ID space
-if not torch.equal(base_inputs["input_ids"], draft_inputs["input_ids"]):
-    raise RuntimeError("Tokenizer mismatch: base and draft encode the same prompt to different token IDs.")
+prompt = "Explain speculative decoding in one sentence."
 
-# 3) Load models
-base = AutoModelForCausalLM.from_pretrained(
-    BASE_MODEL,
-    trust_remote_code=True,
+enc_main  = main_tok(prompt, return_tensors="pt")
+enc_draft = draft_tok(prompt, return_tensors="pt")
+
+print("\nTokenizer equality checks:")
+print("  Same vocab size :", main_tok.vocab_size == draft_tok.vocab_size)
+print("  Same input_ids  :", torch.equal(enc_main["input_ids"], enc_draft["input_ids"]))
+
+print("\nLoading models...")
+main = AutoModelForCausalLM.from_pretrained(
+    MAIN_ID,
     torch_dtype=torch.float16 if device == "cuda" else torch.float32,
     device_map="auto" if device == "cuda" else None,
 ).eval()
 
-draft = AutoModelForCausalLM.from_pretrained(
-    DRAFT_MODEL,
-    trust_remote_code=True,
+drafter = AutoModelForCausalLM.from_pretrained(
+    DRAFT_ID,
     torch_dtype=torch.float16 if device == "cuda" else torch.float32,
     device_map="auto" if device == "cuda" else None,
 ).eval()
 
-# Move inputs to same device as base if needed
 if device != "cuda":
-    base = base.to(device)
-    draft = draft.to(device)
+    main = main.to(device)
+    drafter = drafter.to(device)
 
-inputs = {k: v.to(device) for k, v in base_inputs.items()}
+inputs = {k: v.to(device) for k, v in enc_main.items()}
 
-# 4) Assisted generate smoke test
 gen_cfg = GenerationConfig(
     max_new_tokens=64,
-    do_sample=False,   # start with greedy; set True if you want sampling
-    temperature=1.0,
+    do_sample=False,
+    temperature=0.0,
 )
 
+# -------- Test 1: vanilla assisted decoding (EXPECTED TO FAIL) --------
+print("\n[TEST 1] Vanilla assistant_model generate()")
 try:
-    t0 = time.time()
-    out = base.generate(
+    _ = main.generate(
         **inputs,
         generation_config=gen_cfg,
-        assistant_model=draft,
+        assistant_model=drafter,
+    )
+    print("❗ Unexpectedly succeeded (tokenizers already compatible)")
+except Exception as e:
+    print("❌ Expected failure:")
+    print(type(e).__name__, ":", e)
+
+# -------- Test 2: FIX 1 — shared tokenizer --------
+print("\n[TEST 2] Shared-tokenizer assisted decoding")
+try:
+    t0 = time.time()
+    out = main.generate(
+        **inputs,
+        generation_config=gen_cfg,
+        assistant_model=drafter,
         return_dict_in_generate=True,
-        output_scores=False,
     )
     dt = time.time() - t0
-
     seq = out.sequences[0]
-    text = base_tok.decode(seq, skip_special_tokens=True)
-
-    new_tokens = int(seq.shape[-1] - inputs["input_ids"].shape[-1])
-    tps = new_tokens / dt if dt > 0 else float("inf")
-
-    print("\n✅ assisted generate OK")
-    print("new_tokens:", new_tokens, "wall_time(s):", round(dt, 3), "tokens/sec:", round(tps, 2))
-    print("\n--- output ---\n", text)
-
+    text = main_tok.decode(seq, skip_special_tokens=True)
+    new_tokens = seq.shape[-1] - inputs["input_ids"].shape[-1]
+    print("✅ Shared-tokenizer generate OK")
+    print("   new_tokens:", new_tokens, "time:", round(dt,3), "tok/s:", round(new_tokens/dt,2))
+    print("   output:", text)
 except Exception as e:
-    print("\n❌ assisted generate FAILED")
-    print(type(e).__name__, ":", str(e))
-    raise
+    print("❌ Shared-tokenizer failed:")
+    print(type(e).__name__, ":", e)
+
+# -------- Test 3: FIX 2 — Universal Assisted Decoding --------
+print("\n[TEST 3] Universal Assisted Decoding (UAD)")
+try:
+    t0 = time.time()
+    out = main.generate(
+        **inputs,
+        generation_config=gen_cfg,
+        assistant_model=drafter,
+        tokenizer=main_tok,
+        assistant_tokenizer=draft_tok,
+        return_dict_in_generate=True,
+    )
+    dt = time.time() - t0
+    seq = out.sequences[0]
+    text = main_tok.decode(seq, skip_special_tokens=True)
+    new_tokens = seq.shape[-1] - inputs["input_ids"].shape[-1]
+    print("✅ UAD generate OK")
+    print("   new_tokens:", new_tokens, "time:", round(dt,3), "tok/s:", round(new_tokens/dt,2))
+    print("   output:", text)
+except Exception as e:
+    print("❌ UAD failed:")
+    print(type(e).__name__, ":", e)
+
+print("\n===== DONE =====")
