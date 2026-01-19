@@ -12,6 +12,7 @@ from fastchat.utils import str_to_torch_dtype
 from transformers import AutoModelForCausalLM, AutoTokenizer, GenerationMixin
 from model.sps.decoding import assisted_decoding
 
+print('QWe')
 
 def _ensure_pad_token(tokenizer):
     # Avoid generation/padding edge cases
